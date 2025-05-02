@@ -253,6 +253,11 @@ def get_commit(commit_api):
                % (naive_url_encode(repo), naive_url_encode(branch)))
         headers = None
         lambda_query = gitlab_lambda_query_sha1
+    elif fetcher == 'gitlab.inria.fr':
+        url = ('https://%s/api/v4/projects/%s/repository/branches/%s'
+               % (fetcher, naive_url_encode(repo), naive_url_encode(branch)))
+        headers = None
+        lambda_query = gitlab_lambda_query_sha1
     else:
         error("Error: do not support 'fetcher: %s'" % fetcher)
     return get_url(url, headers, None, lambda_query)
@@ -363,6 +368,7 @@ def get_list_dict_dockerfile_matrix_tags_args(json, debug):
     args1 = json['args'] if 'args' in json else {}
     gvars = json['vars'] if 'vars' in json else {}
     # = global vars, interpolated in:
+    # - dockerfile
     # - args
     # - build.args
     # - build.tags
@@ -370,11 +376,10 @@ def get_list_dict_dockerfile_matrix_tags_args(json, debug):
     for item in images:
         list_matrix = product_build_matrix(item['matrix'])
         if 'dockerfile' in item['build']:
-            dfile = check_trim_relative_path(item['build']['dockerfile'])
+            dfile_templ = check_trim_relative_path(item['build']['dockerfile'])
         else:
-            dfile = 'Dockerfile'
-        context = check_trim_relative_path(item['build']['context'])
-        path = '%s/%s' % (context, dfile)
+            dfile_templ = 'Dockerfile'
+        context_templ = check_trim_relative_path(item['build']['context'])
         raw_tags = item['build']['tags']
         args2 = item['build']['args'] if 'args' in item['build'] else {}
         raw_args = merge_dict(args1, args2)
@@ -454,6 +459,9 @@ def get_list_dict_dockerfile_matrix_tags_args(json, debug):
                     if eval_if(script_cond, matrix, gvars):
                         # otherwise skip the script item
                         after_deploy_script.append(script_item)
+            dfile = eval_bashlike(dfile_templ, matrix, gvars)  # NOT defaults
+            context = eval_bashlike(context_templ, matrix, gvars)  # idem
+            path = '%s/%s' % (context, dfile)
             newitem = {"context": context, "dockerfile": dfile,
                        "path": path,
                        "matrix": matrix, "tags": tags, "args": args,
@@ -1524,12 +1532,14 @@ def main(argv):
 # $ py.test bash_formatter.py
 
 def test_get_commit():
-    github = {"fetcher": "github", "repo": "coq/coq", "branch": "v8.0"}
-    github_expected = "f7777da84893a182f566667426d13dd43f2ee45a"
+    github = {"fetcher": "github", "repo": "rocq-prover/rocq",
+              "branch": "v8.1"}
+    github_expected = "f7cdf553d983a79fe0fbb08403f6a55230016074"
     github_actual = get_commit(github)
     assert github_actual == github_expected
-    gitlab = {"fetcher": "gitlab", "repo": "coq/coq", "branch": "v8.0"}
-    gitlab_expected = "f7777da84893a182f566667426d13dd43f2ee45a"
+    gitlab = {"fetcher": "gitlab.inria.fr", "repo": "coq/coq",
+              "branch": "v8.1"}
+    gitlab_expected = "f7cdf553d983a79fe0fbb08403f6a55230016074"
     gitlab_actual = get_commit(gitlab)
     assert gitlab_actual == gitlab_expected
 
@@ -1619,6 +1629,15 @@ def test_subset_list():
     assert subset_list(l2, l3)
     assert not subset_list(l2, l1)
     assert not subset_list(l2, l0)
+
+
+def test_subset_comma_list():
+    s1 = '8.19'
+    s2 = '8.18,8.19,8.20,dev'
+    s3 = '8.4'
+    s4 = '8.40,dev'
+    assert subset_comma_list(s1, s2)
+    assert not subset_comma_list(s3, s4)
 
 
 def test_equalize_args():
