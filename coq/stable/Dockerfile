@@ -1,6 +1,9 @@
 ARG BASE_TAG="latest"
 FROM rocq/base:${BASE_TAG}
 
+# The following variable should be nonempty for coq >= 8.17
+ARG COQ_CORE_PINNED
+
 ARG COQ_EXTRA_OPAM="coq-bignums"
 ENV COQ_EXTRA_OPAM="${COQ_EXTRA_OPAM}"
 
@@ -18,6 +21,10 @@ RUN set -x \
   && eval $(opam env "--switch=${COMPILER}" --set-switch) \
   && opam update -y -u \
   && opam pin add -n -k version coq ${COQ_VERSION} \
+  && if [ -n "${COQ_CORE_PINNED}" ]; then \
+     opam pin add -n -k version coq-core ${COQ_VERSION} && \
+     opam pin add -n -k version coq-stdlib ${COQ_VERSION} && \
+     opam pin add -n -k version coqide-server ${COQ_VERSION}; fi \
   && opam install -y -v -j "${NJOBS}" coq ${COQ_EXTRA_OPAM} ${COQ_INSTALL_SERAPI:+coq-serapi} \
   && opam clean -a -c -s --logs \
   && chmod -R g=u /home/coq/.opam \
