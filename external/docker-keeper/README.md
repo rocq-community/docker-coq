@@ -47,8 +47,9 @@ options:
 subcommands:
   {generate-config,write-artifacts}
     generate-config     Print a GitLab CI YAML config to standard output. This
-                        requires files: {generated/build_data_chosen.json,
-                        generated/remote_tags_to_rm.json}
+                        requires files: - generated/build_data_chosen.json -
+                        generated/remote_tags_to_rm.json -
+                        generated/propagate.json
     write-artifacts     Generate artifacts in the 'generated' directory. This
                         requires having file 'images.yml' in the current
                         working directory.
@@ -106,8 +107,11 @@ options:
 ```
 usage: keeper.py generate-config [-h]
 
-Print a GitLab CI YAML config to standard output. This requires files:
-{generated/build_data_chosen.json, generated/remote_tags_to_rm.json}
+    Print a GitLab CI YAML config to standard output.
+    This requires files:
+    - generated/build_data_chosen.json
+    - generated/remote_tags_to_rm.json
+    - generated/propagate.json
 
 options:
   -h, --help  show this help message and exit
